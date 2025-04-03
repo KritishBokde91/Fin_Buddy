@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowBigRightDash } from "lucide-react";
 import { Line, Pie, Bar } from "react-chartjs-2";
@@ -19,7 +19,7 @@ ChartJS.register(
   Legend
 );
 
-// Static API response data
+// Static API response data (keeping this for charts)
 const apiResponse = {
   status: "success",
   charts: {
@@ -53,30 +53,54 @@ const apiResponse = {
     total_spendings: 27,
     total_amount: 1068.92,
     average_monthly: 356.31
-  },
-  basic_suggestions: [
-    {
-      suggestion: "Reduce grocery expenses by meal planning",
-      category: "Food",
-      priority: "High",
-      estimated_savings: "30"
-    },
-    {
-      suggestion: "Cancel unused subscriptions",
-      category: "Subscription",
-      priority: "Medium",
-      estimated_savings: "15"
-    }
-  ]
+  }
 };
+
+// Shimmer Effect Component
+const ShimmerCard = () => (
+  <div className="p-5 bg-gray-100 rounded-xl w-full md:w-1/3 lg:w-1/4 animate-pulse">
+    <div className="flex items-center mb-2">
+      <div className="w-3 h-3 rounded-full bg-gray-300 mr-2"></div>
+      <div className="h-6 w-1/3 bg-gray-300 rounded"></div>
+    </div>
+    <div className="h-4 bg-gray-300 rounded w-3/4 mb-3"></div>
+    <div className="flex justify-between">
+      <div className="h-4 bg-gray-300 rounded w-1/4"></div>
+      <div className="h-4 bg-gray-300 rounded w-1/4"></div>
+    </div>
+  </div>
+);
 
 function Page() {
   const [img, setImg] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Use the static data directly
-  const ai = apiResponse.basic_suggestions || [];
+  // Use static data for charts
   const analysisData = apiResponse;
+
+  // Fetch suggestions from API
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/suggestions/');
+        const data = await response.json();
+        if (data.status === "success") {
+          setSuggestions(data.ai_suggestions);
+        }
+      } catch (error) {
+        console.error('Error fetching suggestions:', error);
+        // Fallback to empty array if API fails
+        setSuggestions([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSuggestions();
+  }, []);
 
   // Prepare chart data from static response
   const pieChartData = analysisData.charts.pie_chart;
@@ -85,23 +109,16 @@ function Page() {
 
   return (
     <div className="h-screen w-full text-blue-600">
+      {/* Navigation remains the same */}
       <nav className="fixed top-0 h-20 w-full flex items-center justify-between px-10 gap-10 bg-white">
         <div>
           <h1 className="text-3xl">FinBubby</h1>
         </div>
         <div className="flex gap-10 items-center justify-center">
-          <Link href="/dashboard">
-            <h1 className="cursor-pointer">Home</h1>
-          </Link>  
-          <Link href="/spending">
-            <h1>Spendings</h1>
-          </Link>
-          <Link href="/forecast">
-            <h1>Forecast</h1>
-          </Link>
-          <Link href="/prediction">
-            <h1>Predition </h1>
-          </Link>
+          <Link href="/dashboard"><h1 className="cursor-pointer">Home</h1></Link>  
+          <Link href="/spending"><h1>Spendings</h1></Link>
+          <Link href="/forecast"><h1>Forecast</h1></Link>
+          <Link href="/prediction"><h1>Predition</h1></Link>
           <div className="h-10 w-10 rounded-3xl overflow-hidden bg-gray-100 flex items-center justify-center">
             {img ? (
               <img src={img} alt="User profile" className="w-full h-full object-cover" />
@@ -117,7 +134,7 @@ function Page() {
           Forecast <ArrowBigRightDash size={70} />
         </h1>
         
-        {/* Summary Cards */}
+        {/* Summary Cards remain the same */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <div className="bg-white p-6 rounded-xl shadow-lg">
             <h3 className="text-lg font-semibold text-gray-500">Total Spendings</h3>
@@ -130,12 +147,12 @@ function Page() {
           </div>
           <div className="bg-white p-6 rounded-xl shadow-lg">
             <h3 className="text-lg font-semibold text-gray-500">Suggestions</h3>
-            <p className="text-3xl font-bold">{ai.length}</p>
+            <p className="text-3xl font-bold">{suggestions.length}</p>
             <p className="text-sm text-gray-500">potential savings</p>
           </div>
         </div>
 
-        {/* Charts Section */}
+        {/* Charts Section remains the same */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-10">
           <div className="p-5 bg-white rounded-xl shadow-lg">
             <h2 className="text-xl mb-3">Monthly Spending</h2>
@@ -144,9 +161,7 @@ function Page() {
               options={{
                 responsive: true,
                 plugins: {
-                  legend: {
-                    position: 'top',
-                  },
+                  legend: { position: 'top' },
                   tooltip: {
                     callbacks: {
                       label: (context) => `$${context.raw.toFixed(2)}`
@@ -188,14 +203,21 @@ function Page() {
           </div>
         </div>
         
-        {/* Suggestions Section */}
+        {/* Updated Suggestions Section */}
         <div className="h-full w-full mt-10">
           <h1 className="text-5xl text-blue-600 flex items-center gap-1">
             Suggestions <ArrowBigRightDash size={70} />
           </h1>
           <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
-            {ai.length > 0 ? (
-              ai.map((item, index) => (
+            {isLoading ? (
+              // Show shimmer effect while loading
+              <>
+                <ShimmerCard />
+                <ShimmerCard />
+                <ShimmerCard />
+              </>
+            ) : suggestions.length > 0 ? (
+              suggestions.map((item, index) => (
                 <div key={index} className="p-5 bg-white rounded-xl shadow-lg border-dashed border-2 w-full md:w-1/3 lg:w-1/4">
                   <div className="flex items-center mb-2">
                     <div className={`w-3 h-3 rounded-full mr-2 ${
